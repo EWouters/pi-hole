@@ -53,6 +53,7 @@ c=$(( c < 70 ? 70 : c ))
 skipSpaceCheck=false
 reconfigure=false
 runUnattended=false
+configFirewall=false
 
 # Compatibility
 distro_check() {
@@ -923,8 +924,10 @@ create_pihole_user() {
 configureFirewall() {
   # Allow HTTP and DNS traffic
   if firewall-cmd --state &> /dev/null; then
-    whiptail --title "Firewall in use" --yesno "We have detected a running firewall\n\nPi-hole currently requires HTTP and DNS port access.\n\n\n\nInstall Pi-hole default firewall rules?" ${r} ${c} || \
-    { echo -e ":::\n::: Not installing firewall rulesets."; return 0; }
+    if [[ ${useUpdateVars} == false ]]; then
+      whiptail --title "Firewall in use" --yesno "We have detected a running firewall\n\nPi-hole currently requires HTTP and DNS port access.\n\n\n\nInstall Pi-hole default firewall rules?" ${r} ${c} || \
+      { echo -e ":::\n::: Not installing firewall rulesets."; return 0; }
+    fi
     echo -e ":::\n:::\n Configuring FirewallD for httpd and dnsmasq."
     firewall-cmd --permanent --add-port=80/tcp --add-port=53/tcp --add-port=53/udp
     firewall-cmd --reload
@@ -934,8 +937,10 @@ configureFirewall() {
     # If chain Policy is not ACCEPT or last Rule is not ACCEPT
     # then check and insert our Rules above the DROP/REJECT Rule.
     if iptables -S INPUT | head -n1 | grep -qv '^-P.*ACCEPT$' || iptables -S INPUT | tail -n1 | grep -qv '^-\(A\|P\).*ACCEPT$'; then
-      whiptail --title "Firewall in use" --yesno "We have detected a running firewall\n\nPi-hole currently requires HTTP and DNS port access.\n\n\n\nInstall Pi-hole default firewall rules?" ${r} ${c} || \
-      { echo -e ":::\n::: Not installing firewall rulesets."; return 0; }
+      if [[ ${useUpdateVars} == false ]]; then
+        whiptail --title "Firewall in use" --yesno "We have detected a running firewall\n\nPi-hole currently requires HTTP and DNS port access.\n\n\n\nInstall Pi-hole default firewall rules?" ${r} ${c} || \
+        { echo -e ":::\n::: Not installing firewall rulesets."; return 0; }
+      fi
       echo -e ":::\n::: Installing new IPTables firewall rulesets."
       # Check chain first, otherwise a new rule will duplicate old ones
       iptables -C INPUT -p tcp -m tcp --dport 80 -j ACCEPT &> /dev/null || iptables -I INPUT 1 -p tcp -m tcp --dport 80 -j ACCEPT
@@ -1063,6 +1068,9 @@ updatePihole() {
   fi
   installCron
   installLogrotate
+  if [[ ${configFirewall} == true ]]; then
+    configureFirewall
+  fi
   finalExports #re-export setupVars.conf to account for any new vars added in new versions
   #runGravity
 }
@@ -1087,11 +1095,11 @@ checkSelinux() {
 
 displayFinalMessage() {
 
-   if [[ ${INSTALL_WEB} == true ]]; then
-       additional="View the web interface at http://pi.hole/admin or http://${IPV4_ADDRESS%/*}/admin
+  if [[ ${INSTALL_WEB} == true ]]; then
+    additional="View the web interface at http://pi.hole/admin or http://${IPV4_ADDRESS%/*}/admin
 
 Your Admin Webpage login password is ${1:-"NOT SET"}"
-   fi
+  fi
 
   # Final completion message to user
   whiptail --msgbox --backtitle "Make it so." --title "Installation Complete!" "Configure your devices to use the Pi-hole as their DNS server using:
@@ -1186,9 +1194,10 @@ main() {
   # Check arguments for the undocumented flags
   for var in "$@"; do
     case "$var" in
-      "--reconfigure"  ) reconfigure=true;;
-      "--i_do_not_follow_recommendations"   ) skipSpaceCheck=false;;
-      "--unattended"     ) runUnattended=true;;
+      "--reconfigure" ) reconfigure=true;;
+      "--i_do_not_follow_recommendations" ) skipSpaceCheck=false;;
+      "--unattended" ) runUnattended=true;;
+      "--configure_firewall" ) configFirewall=true;;
     esac
   done
 
