@@ -54,6 +54,7 @@ skipSpaceCheck=false
 reconfigure=false
 runUnattended=false
 configFirewall=false
+setIPv4=false
 
 # Compatibility
 distro_check() {
@@ -1198,6 +1199,7 @@ main() {
       "--i_do_not_follow_recommendations" ) skipSpaceCheck=false;;
       "--unattended" ) runUnattended=true;;
       "--configure_firewall" ) configFirewall=true;;
+      "--set_static_ipv4" ) setIPv4=true;;
     esac
   done
 
@@ -1227,7 +1229,7 @@ main() {
   # Install packages used by this installation script
   install_dependent_packages INSTALLER_DEPS[@]
 
-   # Check if SELinux is Enforcing
+  # Check if SELinux is Enforcing
   checkSelinux
 
 
@@ -1256,7 +1258,7 @@ main() {
     # Clone/Update the repos
     clone_or_update_repos
 
-       # Install packages used by the Pi-hole
+    # Install packages used by the Pi-hole
     if [[ ${INSTALL_WEB} == true ]]; then
       DEPS=("${PIHOLE_DEPS[@]}" "${PIHOLE_WEB_DEPS[@]}")
     else
@@ -1268,6 +1270,15 @@ main() {
     # Install and log everything to a file
     installPihole | tee ${tmpLog}
   else
+    # Set static IPv4 address if --set_static_ipv4 flag was passed to the script
+    if [[ ${setIPv4} == true ]]; then
+      local route
+      # Find IP used to route to outside world
+      route=$(ip route get 8.8.8.8)
+      IPv4gw=$(awk '{print $3}' <<< "${route}")
+      setStaticIPv4
+    fi
+
     # Clone/Update the repos
     clone_or_update_repos
 
