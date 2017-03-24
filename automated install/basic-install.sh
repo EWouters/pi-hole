@@ -1207,6 +1207,13 @@ main() {
     if [[ "${runUnattended}" == true ]]; then
       echo "::: --unattended passed to install script, no whiptail dialogs will be displayed"
       useUpdateVars=true
+      if [[ "${configFirewall}" == true ]]; then
+        echo "::: --configure_firewall passed to install script, firewall will be configured"
+      fi
+      if [[ "${setIPv4}" == true ]]; then
+        echo "::: --set_static_ipv4 passed to install script, static ipv4 address will be configured"
+      fi
+      echo ":::"
     else
       update_dialogs
     fi
