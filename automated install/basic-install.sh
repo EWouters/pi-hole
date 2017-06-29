@@ -472,6 +472,28 @@ setDHCPCD() {
   static domain_name_servers=127.0.0.1" | tee -a /etc/dhcpcd.conf >/dev/null
 }
 
+setIPAlias() {
+  OIFS=$IFS
+  IFS='.'
+  ip=(${IPV4_ADDRESS})
+  IFS=${OIFS}
+  IPV4_ADDRESS_ALIAS="${ip[0]}.${ip[1]}.${ip[2]}.((${ip[3]}+1))"
+  if [[ -f /etc/dhcpcd.conf ]]; then
+    # Append these lines to pihole-if to enable IP aliasing
+    echo "auto ${PIHOLE_INTERFACE}:0
+    iface ${PIHOLE_INTERFACE}:0:0 inet static
+    address ${IPV4_ADDRESS_ALIAS}
+    netmask 255.255.255.0" | tee -a /etc/pihole/pihole-if >/dev/null
+    # Link pihole-if to interfaces.d
+    ln -s /etc/pihole/pihole-if /etc/network/interfaces.d/
+    ifup -v ${PIHOLE_INTERFACE}:0:0
+    
+    #sudo nano /etc/lighttpd/lighttpd.conf
+    # server.bind = "${IPV4_ADDRESS_ALIAS}"
+    # #include_shell "/usr/share/lighttpd/use-ipv6.pl " + server.port
+  fi
+}
+
 setStaticIPv4() {
   local IFCFG_FILE
   local IPADDR
